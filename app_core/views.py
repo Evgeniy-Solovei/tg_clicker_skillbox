@@ -1,7 +1,7 @@
 import logging
 from django.db.models import Prefetch
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema_view, extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema_view, extend_schema, OpenApiResponse, OpenApiExample
 from rest_framework import status
 from rest_framework.response import Response
 from app_core.models import Player, ReferralSystem, League, PlayerTask, DAILY_BONUSES, Task
@@ -21,7 +21,36 @@ from async_cache import async_cache
             OpenApiParameter(name="referral_id", type=int, description="Идентификатор реферала (опционально)", required=False)
         ],
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=PlayerSerializer,
+                description="Информация о пользователе",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value={
+                            "id": "id пользователя в БД",
+                            "tg_id": "tg_id пользователя в ТГ",
+                            "name": "Имя пользователя",
+                            "registration_date": "Дата регистрации",
+                            "points": "Текущие очки пользователя",
+                            "points_all": "Очки пользователя за месяц",
+                            "tap_points": "Очки за 1 тап в игре",
+                            "tickets": "Билеты пользователя",
+                            "tickets_all": "Билеты пользователя за месяц",
+                            "premium_tickets": "Премиум билеты пользователя",
+                            "premium_tickets_all": "Премиум билеты пользователя за месяц",
+                            "consecutive_days": "Количество входов дней подряд",
+                            "last_login_date": "Дата последнего входа",
+                            "login_today":  "Входил ли пользователь сегодня",
+                            "daily_points": "Количество очков за день",
+                            "daily_bonus_friends": "Бонус за друзей в размере 10% в сутки",
+                            "rank": "Ранг в игре",
+                            "league": "Id лиги игрока",
+                            "bonus_info": "Информация о ежедневных бонусах"
+                        }
+                    )
+                ]
+            ),
             400: {"description": "Неверные данные"},
             404: {"description": "Реферал не найден"}
         }
@@ -100,7 +129,23 @@ class PlayerInfo(GenericAPIView):
             OpenApiParameter(name="tg_id", type=int, description="Уникальный идентификатор пользователя в Telegram")
         ],
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=PlayerTaskSerializer,
+                description="Информация о друзьях",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value=[
+                            {
+                                "tg_id": 'Id пользователя',
+                                "name": 'Имя пользователя',
+                                "referral_bonus": 'Забрали бонус или нет',
+                                "points": 'Количество монет друга'
+                            }
+                        ]
+                    )
+                ]
+            ),
             404: {"description": "Игрок не найден"}
         }
     )
@@ -143,7 +188,16 @@ class PlayerFriendsView(GenericAPIView):
             OpenApiParameter(name="new_player_id", type=int, description="ID нового игрока, которого пригласил реферал.")
         ],
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=PlayerTaskSerializer,
+                description="Информация о бонусе",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value='Вы получили 500 бонусный очков за друга ...'
+                    )
+                ]
+            ),
             400: {"description": "Реферальная связь не найдена или бонус уже получен."},
             404: {"description": "Игрок не найден."}
         }
@@ -174,12 +228,12 @@ class FriendBonusView(GenericAPIView):
                 return Response({"message": "Бонус за этого друга уже получен."},
                                 status=status.HTTP_400_BAD_REQUEST)
             # Обновляем данные
-            referral_relation.referral.tickets += 1
-            referral_relation.referral.tickets_all += 1
+            referral_relation.referral.points += 500
+            referral_relation.referral.points_all += 500
             await referral_relation.referral.asave(update_fields=["tickets", "tickets_all"])
             referral_relation.referral_bonus = False
             await referral_relation.asave(update_fields=["referral_bonus"])
-            return Response({"message": f"Вы получили 1 бонусный билет за друга {referral_relation.new_player.name}!",
+            return Response({"message": f"Вы получили 500 бонусный очков за друга {referral_relation.new_player.name}!",
                             "total_tickets": referral_relation.referral.tickets}, status=status.HTTP_200_OK)
         except Player.DoesNotExist:
             return Response({"error": "Игрок не найден."}, status=status.HTTP_404_NOT_FOUND)
@@ -194,7 +248,16 @@ class FriendBonusView(GenericAPIView):
             OpenApiParameter(name="tg_id", type=int, description="Уникальный идентификатор пользователя в Telegram")
         ],
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=PlayerTaskSerializer,
+                description="Реферальная ссылка",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value="https://t.me/skillbox_app_bot?start=id_1234"
+                    )
+                ]
+            ),
             500: {"description": "Ошибка при генерации ссылки"}
         }
     )
@@ -227,7 +290,33 @@ class GenerateRefLinkView(GenericAPIView):
             OpenApiParameter(name="dop_name", type=str, description="Дополнительное имя задачи (опционально)", required=False)
         ],
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=PlayerTaskSerializer,
+                description="Информация о задачах",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value=[
+                            {
+                                "id": 'id пользователя в БД',
+                                "task": {
+                                    "id": 'id задачи',
+                                    "name": 'Имя задачи',
+                                    "picture": 'Картинка',
+                                    "dop_name": 'Дополнительное имя',
+                                    "description": 'Описание',
+                                    "link": 'Ссылка на задачу',
+                                    "reward_currency": 'Награда за выполнение - очки',
+                                    "reward_tickets": 'Награда за выполнение - билеты',
+                                    "is_active": 'Активна задачи или нет'
+                                },
+                                "start_time": 'Начало выполнения задачи',
+                                "completed": 'Выполнена ли задача'
+                            }
+                        ]
+                    )
+                ]
+            ),
             404: {"description": "Задачи не найдены"}
         }
     ),
@@ -241,7 +330,33 @@ class GenerateRefLinkView(GenericAPIView):
         ],
         request=OpenApiTypes.OBJECT,
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=PlayerTaskSerializer,
+                description="Информация о задачах",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value=[
+                            {
+                                "id": 'id пользователя в БД',
+                                "task": {
+                                    "id": 'id задачи',
+                                    "name": 'Имя задачи',
+                                    "picture": 'Картинка',
+                                    "dop_name": 'Дополнительное имя',
+                                    "description": 'Описание',
+                                    "link": 'Ссылка на задачу',
+                                    "reward_currency": 'Награда за выполнение - очки',
+                                    "reward_tickets": 'Награда за выполнение - билеты',
+                                    "is_active": 'Активна задачи или нет'
+                                },
+                                "start_time": 'Начало выполнения задачи',
+                                "completed": 'Выполнена ли задача'
+                            }
+                        ]
+                    )
+                ]
+            ),
             400: {"description": "Неверные данные"},
             404: {"description": "Задача не найдена"}
         }
@@ -313,7 +428,33 @@ class TaskPlayerDetailView(GenericAPIView):
         ],
         request=OpenApiTypes.OBJECT,
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=PlayerTaskSerializer,
+                description="Информация о задачах",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value=[
+                                {
+                                    "id": 'id пользователя в БД',
+                                    "task": {
+                                        "id": 'id задачи',
+                                        "name": 'Имя задачи',
+                                        "picture": 'Картинка',
+                                        "dop_name": 'Дополнительное имя',
+                                        "description": 'Описание',
+                                        "link": 'Ссылка на задачу',
+                                        "reward_currency": 'Награда за выполнение - очки',
+                                        "reward_tickets": 'Награда за выполнение - билеты',
+                                        "is_active": 'Активна задачи или нет'
+                                    },
+                                    "start_time": 'Начало выполнения задачи',
+                                    "completed": 'Выполнена ли задача'
+                                }
+                            ]
+                    )
+                ]
+            ),
             400: {"description": "Неверные данные"},
             404: {"description": "Задача не найдена"}
         }
@@ -362,8 +503,30 @@ class StartTaskView(GenericAPIView):
         parameters=[
             OpenApiParameter(name="tg_id", type=int, description="Уникальный идентификатор пользователя в Telegram", required=True)
         ],
+        request=OpenApiTypes.OBJECT,
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=PlayerTaskSerializer,
+                description="Топ 100 игроков",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value=[
+                            {
+                                "top_players": [
+                                    {
+                                        "tg_id": 'Tg_id пользователя в ТГ',
+                                        "name": "Имя пользователя",
+                                        "points": 'Количество монет',
+                                        "rank": 'Ранг игрока'
+                                    },
+                                ],
+                                "player_rank": 'Ранг текущего игрока'
+                            }
+                        ]
+                    )
+                ]
+            ),
             404: {"description": "Игрок не найден"}
         }
     )
@@ -388,3 +551,63 @@ class MonthlyTopPlayersView(GenericAPIView):
             await async_cache.aset("monthly_top_100", top_players)
         return Response({'top_players': top_players, 'player_rank': player.rank})
 
+
+@extend_schema_view(
+    post=extend_schema(
+        tags=["Игра: результат игры"],
+        summary="Обновить результаты игры для игрока",
+        description="Обновляет количество очков и билетов для игрока по уникальному идентификатору в Telegram.",
+        parameters=[
+            OpenApiParameter(name="tg_id", type=int, description="Уникальный идентификатор пользователя в Telegram", required=True),
+            OpenApiParameter(name="points", type=int, description="Количество очков, которые игрок получил", required=True),
+            OpenApiParameter(name="tickets", type=int, description="Количество обычных билетов", required=False),
+            OpenApiParameter(name="premium_tickets", type=int, description="Количество премиум билетов", required=False)
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=PlayerTaskSerializer,
+                description="Информация о задачах",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value='Игрок Oleg получил 87 очков'
+                    )
+                ]
+            ),
+            400: {"description": "Неверные параметры"},
+            404: {"description": "Игрок не найден"}
+        }
+    )
+)
+class GameResult(GenericAPIView):
+    """
+    Эндпоинт для обновления результатов игры для текущего игрока.
+    Принимает POST-запрос.
+    Параметры:
+    - `tg_id`: Уникальный идентификатор пользователя в Telegram.
+    - `points`: Количество очков.
+    - `tickets`: Количество обычных билетов.
+    - `premium_tickets`: Количество премиум билетов.
+    Возвращает:
+    - Количество очков заработанное пользователем.
+    """
+    async def post(self, request):
+        tg_id = request.data.get('tg_id')
+        points = request.data.get('points')
+        tickets = request.data.get('tickets')
+        premium_tickets = request.data.get('premium_tickets')
+        if not tg_id or not points:
+            return Response({"error": "Параметры tg_id и points обязательны"}, status=status.HTTP_400_BAD_REQUEST)
+        if tickets is None and premium_tickets is None:
+            return Response({"error": "Переменная tickets или premium_tickets обязательна"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            player = await Player.objects.aget(tg_id=tg_id)
+        except Player.DoesNotExist:
+            return Response({"error": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
+        if tickets is not None:
+            player.tickets -= int(tickets)
+        if premium_tickets is not None:
+            player.premium_tickets -= int(premium_tickets)
+        player.points += int(points)
+        await player.asave(update_fields=["points", "tickets", "premium_tickets"])
+        return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
