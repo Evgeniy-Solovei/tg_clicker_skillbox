@@ -150,3 +150,18 @@ class PlayerTask(models.Model):
     class Meta:
         verbose_name = "Задание игрока"
         verbose_name_plural = "Задания игроков"
+
+
+class MonthlyTopPlayer(models.Model):
+    """Модель для хранения топ-100 игроков за месяц"""
+    month = models.DateField(verbose_name="Месяц записи")
+    tg_id = models.PositiveBigIntegerField(verbose_name="Telegram ID")
+    name = models.CharField(max_length=50, verbose_name="Имя игрока")
+    points = models.IntegerField(verbose_name="Очки игрока")
+    rank = models.IntegerField(verbose_name="Место в топ-100")
+
+    class Meta:
+        verbose_name = "Топ игрока за месяц"
+        verbose_name_plural = "Топ игроков за месяц"
+        unique_together = ('month', 'rank')
+        indexes = [models.Index(fields=['month'])]

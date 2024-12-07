@@ -1,10 +1,11 @@
 import logging
 from django.db.models import Prefetch
+from django.utils.timezone import now
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema_view, extend_schema, OpenApiResponse, OpenApiExample
 from rest_framework import status
 from rest_framework.response import Response
-from app_core.models import Player, ReferralSystem, League, PlayerTask, DAILY_BONUSES, Task
+from app_core.models import Player, ReferralSystem, League, PlayerTask, DAILY_BONUSES, Task, MonthlyTopPlayer
 from app_core.serializers import PlayerSerializer, PlayerTaskSerializer
 from adrf.viewsets import GenericAPIView
 from async_cache import async_cache
@@ -543,13 +544,19 @@ class MonthlyTopPlayersView(GenericAPIView):
     """
     async def get(self, request, tg_id):
         player = await Player.objects.aget(tg_id=tg_id)
-        top_players = await async_cache.aget("monthly_top_100")
-        if not top_players:
-            # Если кэша нет, загружаем топ-100 из базы и кэшируем
-            top_players_queryset = Player.objects.order_by('-points').values("tg_id", "name", "points", "rank").aiterator()
-            top_players = [task async for task in top_players_queryset][:100]
-            await async_cache.aset("monthly_top_100", top_players)
-        return Response({'top_players': top_players, 'player_rank': player.rank})
+        player_rank = player.rank
+        # Получаем текущий месяц
+        current_month = now().date().replace(day=1)
+        # Загружаем топ-100 игроков за текущий месяц
+        top_players = []
+        async for player in MonthlyTopPlayer.objects.filter(month=current_month).aiterator():
+            top_players.append({
+                "tg_id": player.tg_id,
+                "name": player.name,
+                "points": player.points,
+                "rank": player.rank
+            })
+        return Response({'top_players': top_players, 'player_rank': player_rank})
 
 
 @extend_schema_view(

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import transaction
 from app_core.models import *
 
 
@@ -26,6 +27,23 @@ class ReferralSystemAdmin(admin.ModelAdmin):
 class TaskAdmin(admin.ModelAdmin):
     """Регистрация в админ панели модели Task."""
     list_display = ['id', 'name', 'picture', 'dop_name', 'description', 'link', 'reward_currency', 'reward_tickets', 'is_active']
+
+    def save_model(self, request, obj, form, change):
+        # Сохраняем объект модели
+        super().save_model(request, obj, form, change)
+        # Если объект создается впервые (не изменяется)
+        if not change:
+            # Получаем все идентификаторы игроков
+            players = Player.objects.values_list('id', flat=True)
+            # Создаем объекты PlayerTask для каждого игрока
+            tasks = [PlayerTask(player_id=player_id, task_id=obj.id)for player_id in players]
+            # Выполняем операции в транзакции
+            with transaction.atomic():
+                # Создаем объекты пакетами по 500 штук
+                while tasks:
+                    batch = tasks[:500]
+                    tasks = tasks[500:]
+                    PlayerTask.objects.bulk_create(batch)
 
 
 @admin.register(PlayerTask)
