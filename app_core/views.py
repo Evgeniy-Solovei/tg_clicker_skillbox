@@ -168,7 +168,8 @@ class PlayerFriendsView(GenericAPIView):
             friends = player.referral.all()  # Получаем все объекты ReferralSystem, связанные с игроком
             # Сериализуем друзей
             friends_data = [{'tg_id': friend.new_player.tg_id, 'name': friend.new_player.name,
-                            'referral_bonus': friend.referral_bonus, 'points': friend.new_player.points}
+                            'referral_bonus': friend.referral_bonus, 'points': friend.new_player.points,
+                             'reg_data': friend.new_player.registration_date}
                             for friend in friends]
             return Response(friends_data, status=status.HTTP_200_OK)
         except Player.DoesNotExist:

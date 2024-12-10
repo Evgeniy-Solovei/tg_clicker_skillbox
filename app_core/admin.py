@@ -51,3 +51,9 @@ class PlayerTaskAdmin(admin.ModelAdmin):
     """Регистрация в админ панели модели PlayerTask."""
     list_display = ['id', 'player', 'task', 'start_time', 'completed', 'add_flag']
 
+
+@admin.register(MonthlyTopPlayer)
+class MonthlyTopPlayerAdmin(admin.ModelAdmin):
+    """Регистрация в админ панели модели MonthlyTopPlayer."""
+    list_display = ['id', 'month', 'tg_id', 'name', 'points', 'rank']
+
