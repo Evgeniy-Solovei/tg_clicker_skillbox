@@ -47,6 +47,7 @@ class Player(models.Model):
     daily_bonus_friends = models.IntegerField(default=0, verbose_name="Бонус от рефералов за текущий день")
     rank = models.IntegerField(null=True, blank=True, verbose_name="Место игрока в топ-100")
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="players", verbose_name="Лига игрока")
+    instruction = models.BooleanField(default=True, verbose_name="Показ инструкции")
 
     async def update_daily_status(self):
         """

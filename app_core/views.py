@@ -74,6 +74,7 @@ class PlayerInfo(GenericAPIView):
         """Функция для обновления ежедневного бонуса и получение бонусов от друзей 10%"""
         if player.daily_bonus_friends != 0:
             player.points += player.daily_bonus_friends
+            player.points_all += player.daily_bonus_friends
             player.daily_bonus_friends = 0
         elif player.is_new:
             player.is_new = False
@@ -617,5 +618,7 @@ class GameResult(GenericAPIView):
         if premium_tickets is not None:
             player.premium_tickets -= int(premium_tickets)
         player.points += int(points)
-        await player.asave(update_fields=["points", "tickets", "premium_tickets"])
+        player.points_all += int(points)
+        player.instruction = False
+        await player.asave(update_fields=["points", "points_all", "instruction", "tickets", "premium_tickets"])
         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
