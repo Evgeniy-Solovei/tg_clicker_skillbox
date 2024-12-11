@@ -14,6 +14,7 @@ urlpatterns = [
     path('tasks/<int:tg_id>/', TaskPlayerDetailView.as_view(), name='task_detail'),
     path('tasks/start/<int:tg_id>/<str:dop_name>/', StartTaskView.as_view(), name='start_task'),
     path('top100/<int:tg_id>/', MonthlyTopPlayersView.as_view(), name='top-100'),
+    path('game-result/', GameResult.as_view(), name='game-result'),
 
 ]
 

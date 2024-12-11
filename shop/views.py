@@ -2,7 +2,7 @@ from django.db.models import Prefetch
 from adrf.viewsets import GenericAPIView
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view, OpenApiResponse, OpenApiExample
 from rest_framework import status
 from app_core.models import Player
 from shop.models import Product, PlayerProduct
@@ -11,78 +11,73 @@ from rest_framework.response import Response
 
 @extend_schema_view(
     get=extend_schema(
-        tags=["Продукты"],
+        tags=["Продукты: Список продуктов"],
         summary="Получить список продуктов игрока",
-        description=(
-            "Возвращает список всех доступных продуктов для покупки, включая информацию о "
-            "том, были ли они приобретены игроком и доступны ли для использования. "
-            "Игрок идентифицируется по его tg_id."
-        ),
+        description="Возвращает список всех доступных продуктов для покупки.",
         parameters=[
             OpenApiParameter(
-                name="tg_id",
-                type=int,
-                description="Уникальный идентификатор игрока в Telegram",
-                required=True
-            )
-        ],
+                name="tg_id", type=int, description="Уникальный идентификатор игрока в Telegram", required=True)],
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: OpenApiResponse(
+                response=OpenApiTypes.OBJECT,
+                description="Информация о продуктах.",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value={
+                            "products": [
+                                {
+                                    "id": 'Id продукта',
+                                    "name": 'Имя продукта',
+                                    "description": 'Описание продукта',
+                                    "price": 'Стоимость продукта',
+                                    "shop": {
+                                        "id": 'Id магазина',
+                                        "name": 'Имя магазина'
+                                    },
+                                    "is_purchased": 'Дата покупки',
+                                    "is_accessible": 'Доступен ли продукт текущему игроку'
+                                }
+                            ]
+                        }
+                    )
+                ]
+            ),
             404: {"description": "Игрок не найден"}
         }
     ),
     post=extend_schema(
         tags=["Продукты"],
         summary="Купить продукт для игрока",
-        description=(
-            "Покупает указанный продукт для игрока, если у него достаточно баллов. "
-            "Продукт идентифицируется по ID, переданному в теле запроса. "
-            "Игрок идентифицируется по его tg_id."
-        ),
-        parameters=[
-            OpenApiParameter(
-                name="tg_id",
-                type=int,
-                description="Уникальный идентификатор игрока в Telegram",
-                required=True
-            )
-        ],
-        request={
-            "type": "object",
-            "properties": {
-                "product_id": {
-                    "type": "integer",
-                    "description": "ID продукта, который нужно купить",
-                    "example": 1
-                }
-            },
-            "required": ["product_id"]
-        },
+        description="Покупает указанный продукт для игрока.",
+        parameters=[OpenApiParameter(name="tg_id", type=int, description="Уникальный идентификатор игрока в Telegram", required=True)],
         responses={
-            201: {
-                "type": "object",
-                "properties": {
-                    "message": {"type": "string"},
-                    "product": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "integer"},
-                            "name": {"type": "string"},
-                            "description": {"type": "string"},
-                            "price": {"type": "number"},
-                            "shop": {
-                                "type": "object",
-                                "properties": {
-                                    "id": {"type": "integer"},
-                                    "name": {"type": "string"}
+            201: OpenApiResponse(
+                response=OpenApiTypes.OBJECT,
+                description="Информация о продуктах.",
+                examples=[
+                    OpenApiExample(
+                        "Пример ответа",
+                        value={
+                            "products": [
+                                {
+                                    "id": 'Id продукта',
+                                    "name": 'Имя продукта',
+                                    "description": 'Описание продукта',
+                                    "price": 'Стоимость продукта',
+                                    "shop": {
+                                        "id": 'Id магазина',
+                                        "name": 'Имя магазина'
+                                    },
+                                    "is_purchased": 'Дата покупки',
+                                    "is_accessible": 'Доступен ли продукт текущему игроку',
+                                    "remaining_points": 'Количество очков игрока'
                                 }
-                            },
-                            "is_accessible": {"type": "boolean"}
+                            ]
                         }
-                    },
-                    "remaining_points": {"type": "number"}
-                }
-            },
+                    )
+                ]
+            ),
             400: {"description": "Недостаточно баллов для покупки"},
             404: {"description": "Игрок или продукт не найдены"}
         }
