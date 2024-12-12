@@ -619,6 +619,9 @@ class GameResult(GenericAPIView):
             player.premium_tickets -= int(premium_tickets)
         player.points += int(points)
         player.points_all += int(points)
+        if player.points < 0:
+            player.points = 0
+            player.points_all = 0
         player.instruction = False
         await player.asave(update_fields=["points", "points_all", "instruction", "tickets", "premium_tickets"])
         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
