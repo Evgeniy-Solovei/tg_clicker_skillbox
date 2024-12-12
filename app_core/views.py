@@ -5,7 +5,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema_view, extend_schema, OpenApiResponse, OpenApiExample
 from rest_framework import status
 from rest_framework.response import Response
-from app_core.models import Player, ReferralSystem, League, PlayerTask, DAILY_BONUSES, Task, MonthlyTopPlayer
+from app_core.models import Player, ReferralSystem, League, PlayerTask, DAILY_BONUSES, Task, MonthlyTopPlayer, Blogger
 from app_core.serializers import PlayerSerializer, PlayerTaskSerializer
 from adrf.viewsets import GenericAPIView
 from async_cache import async_cache
@@ -65,6 +65,7 @@ class PlayerInfo(GenericAPIView):
     - `tg_id`: Уникальный идентификатор пользователя в Telegram.
     - `name`: Имя пользователя.
     - `referral_id`: Id-друга который пригласил. (Не обязательный аргумент)
+    - `utm_nickname`: UTM-метка (ник блогера), по которой пришёл пользователь. (Не обязательный аргумент)
     Возвращает:
     - Информацию о пользователе.
     """
@@ -89,7 +90,7 @@ class PlayerInfo(GenericAPIView):
         tasks = [task async for task in Task.objects.all()]
         await PlayerTask.objects.abulk_create([PlayerTask(player=player, task=task) for task in tasks])
 
-    async def get(self, request, tg_id: int, name: str, referral_id: int = None):
+    async def get(self, request, tg_id: int, name: str, referral_id: int = None, utm_nickname: str = None):
         # Пытаемся получить игрока или создаем нового
         defaults = {"name": name, "is_new": True}
         # Устанавливаем дефолтную лигу
@@ -102,12 +103,17 @@ class PlayerInfo(GenericAPIView):
             players_count = await Player.objects.acount()  # Получаем общее количество игроков
             player.rank = players_count  # Новый игрок всегда в конце списка
             await self.create_tasks_new_player(player)  # Присваиваем все задачи игроку
+            # Проверяем, что не переданы оба параметра одновременно
+            if referral_id and utm_nickname:
+                response_data = await self.update_player_status(player)
+                response_data["Error"] = "Нельзя передавать referral_id и utm_nickname одновременно."
+                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
             if referral_id and referral_id != tg_id:
                 referral = await Player.objects.aget(tg_id=referral_id)
                 # Проверяем, что реферальная связь ещё не существует
                 exists = await ReferralSystem.objects.filter(referral=referral, new_player=player).aexists()
                 if not exists:
-                    await ReferralSystem.objects.acreate(referral=referral, new_player=player)
+                    await ReferralSystem.objects.acreate(referral=referral, new_player=player, blogger=None)
                 else:
                     response_data = await self.update_player_status(player)
                     response_data["Error"] = "Игрок уже в друзьях у реферала."
@@ -116,6 +122,16 @@ class PlayerInfo(GenericAPIView):
                 response_data = await self.update_player_status(player)
                 response_data["Error"] = "Нельзя добавить самого себя в друзья!."
                 return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+            elif utm_nickname:
+                blogger = await Blogger.objects.aget(nickname=utm_nickname)
+                if blogger:
+                    blogger.referral_count += 1
+                    await blogger.asave()
+                    await ReferralSystem.objects.acreate(referral=None, new_player=player, blogger=blogger)
+                else:
+                    response_data = await self.update_player_status(player)
+                    response_data["Error"] = "Блогер с такой UTM-меткой не найден."
+                    return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
         # Обновляем ежедневный статус и возвращаем данные игрока
         response_data = await self.update_player_status(player)
         response_data['bonus_info'] = DAILY_BONUSES
@@ -233,7 +249,7 @@ class FriendBonusView(GenericAPIView):
             # Обновляем данные
             referral_relation.referral.points += 500
             referral_relation.referral.points_all += 500
-            await referral_relation.referral.asave(update_fields=["tickets", "tickets_all"])
+            await referral_relation.referral.asave(update_fields=["points", "points_all"])
             referral_relation.referral_bonus = False
             await referral_relation.asave(update_fields=["referral_bonus"])
             return Response({"message": f"Вы получили 500 бонусный очков за друга {referral_relation.new_player.name}!",

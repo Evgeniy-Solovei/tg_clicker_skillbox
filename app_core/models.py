@@ -91,11 +91,14 @@ class Player(models.Model):
 
 class ReferralSystem(models.Model):
     """Модель реферальной системы"""
-    referral = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='referral', verbose_name="Реферал")
+    referral = models.ForeignKey(Player, null=True, blank=True, on_delete=models.CASCADE, related_name='referral',
+                                 verbose_name="Реферал")
     new_player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='new_person',
                                    verbose_name="Новый игрок")
     referral_bonus = models.BooleanField(default=True, verbose_name="Бонус реферала")
     new_player_bonus = models.BooleanField(default=True, verbose_name="Бонус нового игрока")
+    blogger = models.ForeignKey('Blogger', on_delete=models.SET_NULL, null=True, blank=True, related_name='referrals',
+                                verbose_name="Блогер")
 
     class Meta:
         verbose_name = "Реферальная система"
@@ -166,3 +169,18 @@ class MonthlyTopPlayer(models.Model):
         verbose_name_plural = "Топ игроков за месяц"
         unique_together = ('month', 'rank')
         indexes = [models.Index(fields=['month'])]
+
+
+class Blogger(models.Model):
+    """Модель блогера"""
+    nickname = models.CharField(max_length=100, unique=True, verbose_name="Ник блогера")
+    country = models.CharField(max_length=50, null=True, blank=True, verbose_name="Страна")
+    referral_link = models.URLField(unique=True, verbose_name="Реферальная ссылка")
+    referral_count = models.PositiveIntegerField(default=0, verbose_name="Количество приведённых пользователей")
+
+    class Meta:
+        verbose_name = "Блоггер>"
+        verbose_name_plural = "Блоггеры"
+
+    def __str__(self):
+        return self.nickname
