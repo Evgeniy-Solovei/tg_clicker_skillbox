@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.db.models import Prefetch
 from adrf.viewsets import GenericAPIView
 from django.utils import timezone
@@ -50,7 +52,8 @@ from rest_framework.response import Response
         tags=["Продукты"],
         summary="Купить продукт для игрока",
         description="Покупает указанный продукт для игрока.",
-        parameters=[OpenApiParameter(name="tg_id", type=int, description="Уникальный идентификатор игрока в Telegram", required=True)],
+        parameters=[OpenApiParameter(name="tg_id", type=int, description="Уникальный идентификатор игрока в Telegram",
+                                     required=True)],
         responses={
             201: OpenApiResponse(
                 response=OpenApiTypes.OBJECT,
@@ -112,64 +115,70 @@ class ProductListView(GenericAPIView):
         products = [product async for product in products]
         # Собираем список продуктов игрока
         player_products = {pp.product.id: pp for pp in player.purchases.all()}
-
-        response_data = []
+        # Группируем товары по магазинам
+        shops = defaultdict(list)
         for product in products:
-            response_data.append({
+            player_product = player_products.get(product.id)  # Проверяем, есть ли продукт у игрока
+            shops[product.shop].append({
                 "id": product.id,
                 "name": product.name,
                 "description": product.description,
                 "price": product.price,
-                "shop": {
-                    "id": product.shop.id,
-                    "name": product.shop.name
-                },
                 "is_purchased": player_products.get(product.id,
                                                     None).purchased_at if product.id in player_products else False,
-                "is_accessible": player_products.get(product.id,
-                                                     None).is_accessible if product.id in player_products else False
+                "is_accessible": player_product.is_accessible if player_product else False,
             })
+        response_data = [
+            {
+                "id": shop.id,
+                "name": shop.name,
+                "description": shop.description,
+                "picture": shop.picture.url if shop.picture else None,
+                "products": shop_products
+            }
+            for shop, shop_products in shops.items()
+        ]
 
-        return Response({"products": response_data}, status=status.HTTP_200_OK)
+        return Response({"shops": response_data}, status=status.HTTP_200_OK)
 
     async def post(self, request, tg_id):
         product_id = request.data.get('product_id')
+        # Проверяем наличие игрока
         try:
             player = await Player.objects.aget(tg_id=tg_id)
         except Player.DoesNotExist:
             return Response({"error": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
+        # Проверяем наличие продукта
         try:
             product = await Product.objects.select_related('shop').aget(id=product_id, is_active=True)
         except Product.DoesNotExist:
             return Response({"error": "Продукт не найден или не активен"}, status=status.HTTP_404_NOT_FOUND)
-
+        # Проверяем, был ли продукт уже куплен
+        product_already_purchased = await PlayerProduct.objects.filter(player=player, product=product).aexists()
+        if product_already_purchased:
+            return Response({"error": "Продукт уже куплен"}, status=status.HTTP_400_BAD_REQUEST)
         # Проверяем, достаточно ли баллов у игрока для покупки
         if player.points < product.price:
             return Response({"error": "Недостаточно баллов для покупки"}, status=status.HTTP_400_BAD_REQUEST)
-
         # Уменьшаем количество баллов игрока на цену продукта
         player.points -= product.price
         await player.asave()
-
         # Создаем запись о покупке продукта для игрока
-        player_product = await PlayerProduct.objects.acreate(
-            player=player,
-            product=product,
-            purchased_at=timezone.now(),
-            is_accessible=True
-        )
-
+        player_product = await PlayerProduct.objects.acreate(player=player, product=product,
+                                                             purchased_at=timezone.now(),
+                                                             is_accessible=True)
         return Response({
             "message": "Продукт успешно куплен",
+            "shop": {
+                "id": product.shop.id,
+                "name": product.shop.name,
+                "description": product.description
+            },
             "product": {
                 "id": product.id,
                 "name": product.name,
                 "description": product.description,
                 "price": product.price,
-                "shop": {
-                    "id": product.shop.id,
-                    "name": product.shop.name
-                },
                 "is_accessible": player_product.is_accessible
             },
             "remaining_points": player.points
