@@ -20,7 +20,7 @@ class LeagueAdmin(admin.ModelAdmin):
 @admin.register(ReferralSystem)
 class ReferralSystemAdmin(admin.ModelAdmin):
     """Регистрация в админ панели модели ReferralSystem."""
-    list_display = ['id', 'referral', 'new_player', 'referral_bonus', 'new_player_bonus']
+    list_display = ['id', 'referral', 'new_player', 'referral_bonus', 'new_player_bonus', 'blogger']
 
 
 @admin.register(Task)
@@ -57,3 +57,8 @@ class MonthlyTopPlayerAdmin(admin.ModelAdmin):
     """Регистрация в админ панели модели MonthlyTopPlayer."""
     list_display = ['id', 'month', 'tg_id', 'name', 'points', 'rank']
 
+
+@admin.register(Blogger)
+class BloggerAdmin(admin.ModelAdmin):
+    """Регистрация в админ панели модели Blogger."""
+    list_display = ['id', 'nickname', 'country', 'referral_link', 'referral_count']

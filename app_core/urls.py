@@ -6,6 +6,7 @@ app_name = "app_core"
 
 urlpatterns = [
     path('player-info/<int:tg_id>/<str:name>/<int:referral_id>/', PlayerInfo.as_view(), name='player_info_referral'),
+    path('player-info/utm/<int:tg_id>/<str:name>/<str:utm_nickname>/', PlayerInfo.as_view(), name='player_info_referral'),
     path('player-info/<int:tg_id>/<str:name>/', PlayerInfo.as_view(), name='player-info'),
     path('all_friends/<int:tg_id>/', PlayerFriendsView.as_view(), name='all_friends'),
     path('referral_bonus/<int:tg_id>/<int:new_player_id>/', FriendBonusView.as_view(), name='ref_bonus'),
