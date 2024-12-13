@@ -132,8 +132,11 @@ class PlayerInfo(GenericAPIView):
                     response_data = await self.update_player_status(player)
                     response_data["Error"] = "Блогер с такой UTM-меткой не найден."
                     return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+        friends_count = await player.referral.acount()
+
         # Обновляем ежедневный статус и возвращаем данные игрока
         response_data = await self.update_player_status(player)
+        response_data['friends_count'] = friends_count
         response_data['bonus_info'] = DAILY_BONUSES
         return Response(response_data, status=status.HTTP_200_OK)
 
