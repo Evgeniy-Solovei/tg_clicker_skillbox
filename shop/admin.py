@@ -11,7 +11,7 @@ class ShopAdmin(admin.ModelAdmin):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     """Регистрация в админ панели модели Product."""
-    list_display = ['id', 'shop', 'name', 'description', 'price', 'is_active']
+    list_display = ['id', 'shop', 'name', 'description', 'price', 'link', 'country', 'is_active']
 
 
 @admin.register(PlayerProduct)

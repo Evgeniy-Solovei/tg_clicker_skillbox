@@ -124,6 +124,8 @@ class ProductListView(GenericAPIView):
                 "name": product.name,
                 "description": product.description,
                 "price": product.price,
+                'link': product.link,
+                'country': product.country,
                 "is_purchased": player_products.get(product.id,
                                                     None).purchased_at if product.id in player_products else False,
                 "is_accessible": player_product.is_accessible if player_product else False,
@@ -179,6 +181,8 @@ class ProductListView(GenericAPIView):
                 "name": product.name,
                 "description": product.description,
                 "price": product.price,
+                'link': product.link,
+                'country': product.country,
                 "is_accessible": player_product.is_accessible
             },
             "remaining_points": player.points

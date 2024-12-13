@@ -22,6 +22,8 @@ class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name="Название товара")
     description = models.TextField(null=True, blank=True, verbose_name="Описание товара")
     price = models.PositiveIntegerField(default=1000, verbose_name="Цена в очках")
+    link = models.URLField(blank=True, null=True, verbose_name='Ссылка на продукт')
+    country = models.CharField(max_length=50, null=True, blank=True, verbose_name="Страна")
     is_active = models.BooleanField(default=True, verbose_name="Активен")
 
     class Meta:

@@ -118,6 +118,7 @@ class Task(models.Model):
     link = models.URLField(blank=True, null=True, verbose_name='Ссылка для выполнения задания')
     reward_currency = models.IntegerField(default=0, verbose_name='Награда (баллы)')
     reward_tickets = models.IntegerField(default=0, verbose_name='Награда (билеты)')
+    country = models.CharField(max_length=50, null=True, blank=True, verbose_name="Страна")
     is_active = models.BooleanField(default=True, verbose_name="Активность задачи")
 
     class Meta:
