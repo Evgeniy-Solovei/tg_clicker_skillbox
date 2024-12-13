@@ -26,7 +26,7 @@ class ReferralSystemAdmin(admin.ModelAdmin):
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     """Регистрация в админ панели модели Task."""
-    list_display = ['id', 'name', 'picture', 'dop_name', 'description', 'link', 'reward_currency', 'reward_tickets', 'is_active']
+    list_display = ['id', 'heading', 'name', 'picture', 'dop_name', 'description', 'link', 'reward_currency', 'reward_tickets', 'is_active']
 
     def save_model(self, request, obj, form, change):
         # Сохраняем объект модели
