@@ -46,6 +46,7 @@ class Player(models.Model):
     daily_points = models.IntegerField(default=0, verbose_name="Очки за текущий день")
     daily_bonus_friends = models.IntegerField(default=0, verbose_name="Бонус от рефералов за текущий день")
     rank = models.IntegerField(null=True, blank=True, verbose_name="Место игрока в топ-100")
+    country = models.CharField(max_length=50, null=True, blank=True, verbose_name="Страна")
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="players", verbose_name="Лига игрока")
     instruction = models.BooleanField(default=True, verbose_name="Показ инструкции")
 
@@ -103,9 +104,6 @@ class ReferralSystem(models.Model):
     class Meta:
         verbose_name = "Реферальная система"
         verbose_name_plural = "Реферальная системы"
-
-    def __str__(self):
-        return f"me:{self.referral.name}___new_player:{self.new_player.name}"
 
 
 class Task(models.Model):
