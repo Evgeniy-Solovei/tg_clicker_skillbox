@@ -35,6 +35,7 @@ Flask==3.1.0
 Flask-Cors==5.0.0
 Flask-Login==0.6.3
 frozenlist==1.5.0
+geoip2==4.8.1
 gevent==24.11.1
 geventhttpclient==2.3.3
 greenlet==3.1.1
@@ -49,6 +50,7 @@ kombu==5.4.2
 locust==2.32.3
 magic-filter==1.0.12
 MarkupSafe==3.0.2
+maxminddb==2.6.2
 msgpack==1.1.0
 multidict==6.1.0
 pillow==11.0.0
