@@ -1,4 +1,5 @@
 import logging
+import geoip2.database
 from django.db.models import Prefetch
 from django.utils.timezone import now
 from drf_spectacular.types import OpenApiTypes
@@ -90,6 +91,24 @@ class PlayerInfo(GenericAPIView):
         tasks = [task async for task in Task.objects.all()]
         await PlayerTask.objects.abulk_create([PlayerTask(player=player, task=task) for task in tasks])
 
+    def get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+
+    async def get_country_code_from_ip(self, ip):
+        reader = geoip2.database.Reader('GeoLite2-Country.mmdb')
+        try:
+            response = reader.country(ip)
+            return response.country.iso_code  # Возвращаем ISO-код страны
+        except geoip2.errors.AddressNotFoundError:
+            return "Unknown"  # Если IP не найден
+        finally:
+            reader.close()
+
     async def get(self, request, tg_id: int, name: str, referral_id: int = None, utm_nickname: str = None):
         # Пытаемся получить игрока или создаем нового
         defaults = {"name": name, "is_new": True}
@@ -100,6 +119,9 @@ class PlayerInfo(GenericAPIView):
         player, created = await Player.objects.aget_or_create(tg_id=tg_id, defaults=defaults)
         # Если игрок только что создан, проверяем реферальную систему
         if created:
+            ip = self.get_client_ip(request)
+            country_code = await self.get_country_code_from_ip(ip)
+            player.country = country_code
             players_count = await Player.objects.acount()  # Получаем общее количество игроков
             player.rank = players_count  # Новый игрок всегда в конце списка
             await self.create_tasks_new_player(player)  # Присваиваем все задачи игроку
@@ -407,14 +429,16 @@ class TaskPlayerDetailView(GenericAPIView):
                                       .order_by('completed', 'id'))).aget(tg_id=tg_id))
         except Player.DoesNotExist:
             return Response({"detail": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
-        # Фильтруем задачи, если передан dop_name
-        task_players = player.task_player.all()  # Получаем связанные PlayerTask
+        # Получаем связанные PlayerTask
+        task_players = player.task_player.all()
+        # Фильтруем задачи по полю country
+        filtered_task_players = [tp for tp in task_players if tp.task.country == player.country or not tp.task.country]
+        # Если передан dop_name, дополнительно фильтруем по dop_name
         if dop_name:
-            task_players = [tp for tp in task_players if tp.task.dop_name == dop_name]
-        if not task_players:
+            filtered_task_players = [tp for tp in filtered_task_players if tp.task.dop_name == dop_name]
+        if not filtered_task_players:
             return Response({"detail": "Задачи не найдены"}, status=status.HTTP_404_NOT_FOUND)
-        # Сериализуем данные
-        serializer = self.get_serializer(task_players, many=True)
+        serializer = self.get_serializer(filtered_task_players, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def post(self, request, tg_id, dop_name):
