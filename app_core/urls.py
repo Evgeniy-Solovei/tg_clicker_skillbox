@@ -18,5 +18,6 @@ urlpatterns = [
     path('game-result/', GameResult.as_view(), name='game-result'),
     path('tasks_tg/', CheckSubscriptionView.as_view(), name='task_tg'),
     path('task_info/', TaskPlayerInfo.as_view(), name='task_info'),
+    path('bonus_today/', LoginTodayFlag.as_view(), name='task_info'),
 
 ]
