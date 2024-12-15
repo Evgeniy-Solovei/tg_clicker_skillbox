@@ -26,5 +26,5 @@ class PlayerTaskSerializer(ModelSerializer):
 
     class Meta:
         model = PlayerTask
-        fields = ['id', 'task', 'start_time', 'completed']
+        fields = ['id', 'task', 'start_time', 'completed', 'add_flag']
 

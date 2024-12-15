@@ -678,7 +678,6 @@ class GameResult(GenericAPIView):
         if player.points < 0:
             player.points = 0
             player.points_all = 0
-        player.instruction = False
         await player.asave(update_fields=["points", "points_all", "instruction", "tickets", "premium_tickets"])
         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
 
@@ -805,3 +804,15 @@ class LoginTodayFlag(APIView):
         player.login_today = True  # Обновляем флаг, что пользователь зашел сегодня
         await player.asave(update_fields=['login_today'])
         return Response({"message": "Флаг 'login_today' успешно установлен"}, status=status.HTTP_200_OK)
+
+
+class InstructionFlag(APIView):
+    async def post(self, request):
+        tg_id = request.data.get('tg_id')
+        try:
+            player = await Player.objects.aget(tg_id=tg_id)
+        except Player.DoesNotExist:
+            return Response({"error": "Игрок с указанным tg_id не найден."}, status=status.HTTP_404_NOT_FOUND)
+        player.instruction = False  # Обновляем флаг, что пользователю больше не надо видеть инструкцию
+        await player.asave(update_fields=['instruction'])
+        return Response({"message": "Флаг 'instruction' успешно установлен"}, status=status.HTTP_200_OK)
