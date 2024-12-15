@@ -47,6 +47,8 @@ class Player(models.Model):
     daily_bonus_friends = models.IntegerField(default=0, verbose_name="Бонус от рефералов за текущий день")
     rank = models.IntegerField(null=True, blank=True, verbose_name="Место игрока в топ-100")
     country = models.CharField(max_length=50, null=True, blank=True, verbose_name="Страна")
+    name_player = models.CharField(max_length=50, blank=True, null=True, verbose_name="Имя игрока для задачи")
+    phone = models.CharField(max_length=25, blank=True, null=True,  verbose_name="Телефон пользователя")
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="players", verbose_name="Лига игрока")
     instruction = models.BooleanField(default=True, verbose_name="Показ инструкции")
 
@@ -142,8 +144,6 @@ class PlayerTask(models.Model):
                 self.completed = True
                 self.start_time = None
                 await self.asave(update_fields=['completed', 'start_time'])
-                self.player.points += 1000
-                await self.player.asave(update_fields=['points'])
 
     async def start_task_player(self):
         """При вызове представления, задаём полю значение начало выполнение задачи"""
