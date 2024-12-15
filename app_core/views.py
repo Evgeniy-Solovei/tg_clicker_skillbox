@@ -438,7 +438,7 @@ class TaskPlayerDetailView(GenericAPIView):
         #         if tp.task.country == player.country or not tp.task.country
         #     ]
         filtered_task_players = [tp for tp in task_players if tp.task.country == player.country or not tp.task.country]
-        filtered_task_players = sorted(filtered_task_players, key=lambda tp: tp.id)
+        filtered_task_players = sorted(filtered_task_players, key=lambda tp: tp.task.id)
         # Если передан dop_name, дополнительно фильтруем по dop_name
         if dop_name:
             filtered_task_players = [tp for tp in filtered_task_players if tp.task.dop_name == dop_name]
