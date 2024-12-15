@@ -258,9 +258,18 @@ class FriendBonusView(GenericAPIView):
             elif not referral_relation.referral_bonus:
                 return Response({"message": "Бонус за этого друга уже получен."},
                                 status=status.HTTP_400_BAD_REQUEST)
+            # Находим задачу с dop_name = 'friend' для игрока
+            try:
+                friend_task = await PlayerTask.objects.select_related('task').aget(
+                    player=referral_relation.referral, task__dop_name='friend')
+            except PlayerTask.DoesNotExist:
+                return Response({"message": "Задача с dop_name='friend' не найдена для игрока."},
+                                status=status.HTTP_404_NOT_FOUND)
             # Обновляем данные
             referral_relation.referral.points += 500
             referral_relation.referral.points_all += 500
+            friend_task.completed = True
+            await friend_task.asave(update_fields=['completed'])
             await referral_relation.referral.asave(update_fields=["points", "points_all"])
             referral_relation.referral_bonus = False
             await referral_relation.asave(update_fields=["referral_bonus"])
