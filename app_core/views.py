@@ -1,7 +1,10 @@
 import logging
+import os
+import aiohttp
 import geoip2.database
 from django.db.models import Prefetch
 from django.utils.timezone import now
+from dotenv import load_dotenv
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema_view, extend_schema, OpenApiResponse, OpenApiExample
 from rest_framework import status
@@ -10,6 +13,10 @@ from app_core.models import Player, ReferralSystem, League, PlayerTask, DAILY_BO
 from app_core.serializers import PlayerSerializer, PlayerTaskSerializer
 from adrf.viewsets import GenericAPIView
 from async_cache import async_cache
+
+
+load_dotenv()
+TOKEN = os.getenv("TOKEN")
 
 
 @extend_schema_view(
@@ -453,6 +460,7 @@ class TaskPlayerDetailView(GenericAPIView):
             if not tasks_list:
                 return Response({"error": "Задача не найдена"}, status=status.HTTP_404_NOT_FOUND)
             task = tasks_list[0]
+            # award_task = task__reward_currency
             serializer = self.get_serializer(task, data=request.data, partial=True)
             if serializer.is_valid():
                 await serializer.asave()
@@ -668,3 +676,106 @@ class GameResult(GenericAPIView):
         player.instruction = False
         await player.asave(update_fields=["points", "points_all", "instruction", "tickets", "premium_tickets"])
         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
+
+
+async def is_user_in_chat(tg_id, chat_id, token):
+    """Асинхронная функция для проверки, состоит ли пользователь в чате"""
+    url = f"https://api.telegram.org/bot{token}/getChatMember"
+    params = {
+        "chat_id": chat_id,
+        "user_id": tg_id
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, params=params) as response:
+            data = await response.json()
+            if data['ok']:
+                status = data['result']['status']
+                if status in ['member', 'administrator', 'creator']:
+                    return True
+            return False
+
+CHANNEL_ID_MAP = {"tg_by": "-1002427171072", "tg_kz": "-1002479979971", "tg_uz": "-1"}
+
+
+class CheckSubscriptionView(GenericAPIView):
+    """
+    Эндпоинт для проверки подписки пользователя на Telegram-канал.
+    Принимает POST-запрос с параметрами:
+    - `tg_id`: Уникальный идентификатор пользователя в Telegram.
+    - `task_dop_name`: Доп. название задачи.
+    Возвращает:
+    - Статус 200, если пользователь подписан на канал.
+    - Статус 400, если данные невалидны.
+    - Статус 404, если игрок или задача не найдены.
+    """
+    async def post(self, request):
+        tg_id = request.data.get('tg_id')
+        task_dop_name = request.data.get('task_dop_name')
+        if not tg_id or not task_dop_name:
+            return Response({"error": "tg_id и task_dop_name обязательны."}, status=status.HTTP_400_BAD_REQUEST)
+        # Проверяем, существует ли task_dop_name в CHANNEL_ID_MAP
+        channel_id = CHANNEL_ID_MAP.get(task_dop_name)
+        if not channel_id:
+            return Response({"error": f"Не найден CHANNEL_ID для задачи с dop_name '{task_dop_name}'."},
+                            status=status.HTTP_404_NOT_FOUND)
+        # Выполняем один запрос к базе данных для получения игрока, задачи и PlayerTask
+        try:
+            player_task = await PlayerTask.objects.select_related('player', 'task').aget(
+                player__tg_id=tg_id,
+                task__dop_name=task_dop_name
+            )
+        except PlayerTask.DoesNotExist:
+            return Response({"error": "PlayerTask для этого игрока и задачи не найден."},
+                            status=status.HTTP_404_NOT_FOUND)
+        # Извлекаем связанные объекты
+        player = player_task.player
+        task = player_task.task
+        # Проверяем подписку на канал
+        is_in_channel = await is_user_in_chat(tg_id, channel_id, TOKEN)
+        if is_in_channel:
+            # Обновляем поле completed на True
+            player_task.completed = True
+            player_task.start_time = None
+            await player_task.asave()
+            # Увеличиваем количество монет игрока
+            player.points += task.reward_currency
+            player.points_all += task.reward_currency
+            await player.asave(update_fields=['points', 'points_all'])
+            message = f"Пользователь подписан на канал."
+            return Response({"message": message}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "Пользователь не подписан на канал."},
+                            status=status.HTTP_200_OK)
+
+
+class TaskPlayerInfo(GenericAPIView):
+    async def post(self, request):
+        # Получаем данные из запроса
+        tg_id = request.data.get('tg_id')
+        country = request.data.get('country')
+        name_player = request.data.get('name_player')
+        phone = request.data.get('phone')
+        # Проверяем, что все обязательные поля переданы
+        if not tg_id or not country or not name_player or not phone:
+            return Response({
+                "error": "Не все обязательные поля переданы.",
+                "details": {
+                    "tg_id": tg_id if tg_id else "Отсутствует",
+                    "country": country if country else "Отсутствует",
+                    "name_player": name_player if name_player else "Отсутствует",
+                    "phone": phone if phone else "Отсутствует"
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            player = await Player.objects.aget(tg_id=tg_id)
+        except Player.DoesNotExist:
+            return Response({
+                "error": "Игрок с указанным tg_id не найден."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Обновляем данные игрока
+        player.country = country
+        player.name_player = name_player
+        player.phone = phone
+        await player.asave(update_fields=["country", "name_player", "phone"])
+        return Response({"message": "Информация о игроке успешно изменена"}, status=status.HTTP_200_OK)
