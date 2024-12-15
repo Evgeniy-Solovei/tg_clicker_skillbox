@@ -789,7 +789,8 @@ class TaskPlayerInfo(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
         # Устанавливаем задачу как выполненную
         player_task.completed = True
-        await player_task.asave(update_fields=['completed'])
+        player_task.add_flag = True
+        await player_task.asave(update_fields=['completed', 'add_flag'])
         return Response({"message": "Информация о игроке успешно изменена, задача 'anketa' выполнена."},
                         status=status.HTTP_200_OK)
 
