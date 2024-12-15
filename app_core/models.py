@@ -66,6 +66,7 @@ class Player(models.Model):
             days_diff = (today - self.last_login_date).days
             self.consecutive_days = self.consecutive_days + 1 if days_diff == 1 else 1
         else:
+            self.points = 0
             self.consecutive_days = 1
 
         # Получаем бонус для текущего дня
@@ -81,7 +82,6 @@ class Player(models.Model):
         self.points_all += bonus.get("points", 0)  # Увеличиваем общее количество очков
 
         self.last_login_date = today
-        self.login_today = True  # Обновляем флаг, что пользователь зашел сегодня
         await self.asave()
 
     class Meta:

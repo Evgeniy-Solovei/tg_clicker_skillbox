@@ -459,11 +459,17 @@ class TaskPlayerDetailView(GenericAPIView):
             if not tasks_list:
                 return Response({"error": "Задача не найдена"}, status=status.HTTP_404_NOT_FOUND)
             task = tasks_list[0]
-            # award_task = task__reward_currency
+            # Проверяем выполнение задачи
+            await task.check_completion()
+            # Если задача выполнена, зачисляем награду игроку
+            if task.completed:
+                reward_currency = task.task.reward_currency
+                player.points += reward_currency
+                player.points_all += reward_currency
+                await player.asave(update_fields=['points', 'points_all'])
             serializer = self.get_serializer(task, data=request.data, partial=True)
             if serializer.is_valid():
                 await serializer.asave()
-                await task.check_completion()
                 return Response(await serializer.adata, status=status.HTTP_200_OK)
             return Response(await serializer.aerrors, status=status.HTTP_400_BAD_REQUEST)
         return Response({'error': 'tg_id и dop_name обязательные поля'}, status=status.HTTP_400_BAD_REQUEST)
@@ -766,15 +772,36 @@ class TaskPlayerInfo(APIView):
                 }
             }, status=status.HTTP_400_BAD_REQUEST)
         try:
-            player = await Player.objects.aget(tg_id=tg_id)
+            # Загружаем игрока и связанные задачи за один запрос
+            player = await Player.objects.prefetch_related(
+                Prefetch('task_player', queryset=PlayerTask.objects.select_related('task'))).aget(tg_id=tg_id)
         except Player.DoesNotExist:
-            return Response({
-                "error": "Игрок с указанным tg_id не найден."
-            }, status=status.HTTP_404_NOT_FOUND)
-
+            return Response({"error": "Игрок с указанным tg_id не найден."}, status=status.HTTP_404_NOT_FOUND)
         # Обновляем данные игрока
         player.country = country
         player.name_player = name_player
         player.phone = phone
         await player.asave(update_fields=["country", "name_player", "phone"])
-        return Response({"message": "Информация о игроке успешно изменена"}, status=status.HTTP_200_OK)
+        # Ищем задачу с dop_name='anketa' для этого игрока
+        player_task = next((pt for pt in player.task_player.all() if pt.task.dop_name == 'anketa'), None)
+        if not player_task:
+            return Response({
+                "error": "Задача с dop_name='anketa' не найдена для этого игрока."
+            }, status=status.HTTP_404_NOT_FOUND)
+        # Устанавливаем задачу как выполненную
+        player_task.completed = True
+        await player_task.asave(update_fields=['completed'])
+        return Response({"message": "Информация о игроке успешно изменена, задача 'anketa' выполнена."},
+                        status=status.HTTP_200_OK)
+
+
+class LoginTodayFlag(APIView):
+    async def post(self, request):
+        tg_id = request.data.get('tg_id')
+        try:
+            player = await Player.objects.aget(tg_id=tg_id)
+        except Player.DoesNotExist:
+            return Response({"error": "Игрок с указанным tg_id не найден."}, status=status.HTTP_404_NOT_FOUND)
+        player.login_today = True  # Обновляем флаг, что пользователь зашел сегодня
+        await player.asave(update_fields=['login_today'])
+        return Response({"message": "Флаг 'login_today' успешно установлен"}, status=status.HTTP_200_OK)

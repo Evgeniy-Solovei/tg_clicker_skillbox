@@ -53,6 +53,7 @@ def update_monthly_ranking():
             for player in top_100_players
         ]
         MonthlyTopPlayer.objects.bulk_create(bulk_data)
+    Player.objects.update(points=0)
 
 
 @shared_task(acks_late=True, reject_on_worker_lost=True)
