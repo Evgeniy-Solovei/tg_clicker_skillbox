@@ -438,8 +438,26 @@ class TaskPlayerDetailView(GenericAPIView):
             return Response({"detail": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
         # Получаем связанные PlayerTask
         task_players = player.task_player.all()
-        # Фильтруем задачи по полю country
-        filtered_task_players = [tp for tp in task_players if tp.task.country == player.country or not tp.task.country]
+        specific_task = next((tp for tp in task_players if tp.task.dop_name == 'anketa'), None)
+        if specific_task:
+            # Если задача найдена, проверяем её статус completed
+            if specific_task.completed:
+                # Если задача выполнена, отдаем другой список задач
+                filtered_task_players = [tp for tp in task_players
+                                         if tp.task.country == player.country or not tp.task.country]
+            else:
+                # Фильтрация задач: берем только с country=None или country="tg_by"
+                filtered_task_players = [
+                    tp for tp in task_players
+                    if tp.task.country == "tg_by" or tp.task.country is None
+                ]
+        else:
+            # Если нет задачи с dop_name='anketa', фильтруем по стране и другим параметрам
+            filtered_task_players = [
+                tp for tp in task_players
+                if tp.task.country == player.country or not tp.task.country
+            ]
+        # filtered_task_players = [tp for tp in task_players if tp.task.country == player.country or not tp.task.country]
         # Если передан dop_name, дополнительно фильтруем по dop_name
         if dop_name:
             filtered_task_players = [tp for tp in filtered_task_players if tp.task.dop_name == dop_name]
