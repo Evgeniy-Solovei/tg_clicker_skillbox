@@ -46,7 +46,7 @@ class Player(models.Model):
     daily_points = models.IntegerField(default=0, verbose_name="Очки за текущий день")
     daily_bonus_friends = models.IntegerField(default=0, verbose_name="Бонус от рефералов за текущий день")
     rank = models.IntegerField(null=True, blank=True, verbose_name="Место игрока в топ-100")
-    country = models.CharField(max_length=50, default='tg_by', verbose_name="Страна")
+    country = models.CharField(max_length=50, default='by', verbose_name="Страна")
     name_player = models.CharField(max_length=50, blank=True, null=True, verbose_name="Имя игрока для задачи")
     phone = models.CharField(max_length=25, blank=True, null=True,  verbose_name="Телефон пользователя")
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="players", verbose_name="Лига игрока")

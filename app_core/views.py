@@ -98,24 +98,6 @@ class PlayerInfo(GenericAPIView):
         tasks = [task async for task in Task.objects.all()]
         await PlayerTask.objects.abulk_create([PlayerTask(player=player, task=task) for task in tasks])
 
-    def get_client_ip(self, request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
-
-    async def get_country_code_from_ip(self, ip):
-        reader = geoip2.database.Reader('GeoLite2-Country.mmdb')
-        try:
-            response = reader.country(ip)
-            return response.country.iso_code  # Возвращаем ISO-код страны
-        except geoip2.errors.AddressNotFoundError:
-            return "Unknown"  # Если IP не найден
-        finally:
-            reader.close()
-
     async def get(self, request, tg_id: int, name: str, referral_id: int = None, utm_nickname: str = None):
         # Пытаемся получить игрока или создаем нового
         defaults = {"name": name, "is_new": True}
@@ -126,9 +108,6 @@ class PlayerInfo(GenericAPIView):
         player, created = await Player.objects.aget_or_create(tg_id=tg_id, defaults=defaults)
         # Если игрок только что создан, проверяем реферальную систему
         if created:
-            ip = self.get_client_ip(request)
-            country_code = await self.get_country_code_from_ip(ip)
-            player.country = country_code
             players_count = await Player.objects.acount()  # Получаем общее количество игроков
             player.rank = players_count  # Новый игрок всегда в конце списка
             await self.create_tasks_new_player(player)  # Присваиваем все задачи игроку
