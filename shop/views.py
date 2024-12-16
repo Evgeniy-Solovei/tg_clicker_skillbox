@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+from adrf.views import APIView
 from django.db.models import Prefetch, Q
 from adrf.viewsets import GenericAPIView
 from django.utils import timezone
@@ -86,7 +87,7 @@ from rest_framework.response import Response
         }
     )
 )
-class ProductListView(GenericAPIView):
+class ProductListView(APIView):
     """
     Эндпоинт для получения списка продуктов и покупки продуктов для игрока.
     GET:
