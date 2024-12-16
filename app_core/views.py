@@ -826,3 +826,4 @@ class InstructionFlag(APIView):
         player.instruction = False  # Обновляем флаг, что пользователю больше не надо видеть инструкцию
         await player.asave(update_fields=['instruction'])
         return Response({"message": "Флаг 'instruction' успешно установлен"}, status=status.HTTP_200_OK)
+
