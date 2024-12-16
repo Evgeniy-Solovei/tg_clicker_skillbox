@@ -1,4 +1,4 @@
-import{g as R,h as I,r,j as d}from"./index-D6lMSkWz.js";const M="_slidingPanel_mtspc_1",Y="_sliding_mtspc_1",T="_dragZone_mtspc_23",D="_dragHandle_mtspc_30",Z="_overlay_mtspc_42",A="_panelContent_mtspc_50",$="_darkened_mtspc_55",z="_visible_mtspc_63",F="_expanded_mtspc_68",K="_bodyOpen_mtspc_72",o={slidingPanel:M,sliding:Y,dragZone:T,dragHandle:D,overlay:Z,panelContent:A,darkened:$,visible:z,expanded:F,bodyOpen:K};function U(l){const{children:c,element:s=document.body}=l;return R.createPortal(c,s)}var j={exports:{}};/*!
+import{g as R,h as I,r,j as d}from"./index-BG6DyFqA.js";const M="_slidingPanel_mtspc_1",Y="_sliding_mtspc_1",T="_dragZone_mtspc_23",D="_dragHandle_mtspc_30",Z="_overlay_mtspc_42",A="_panelContent_mtspc_50",$="_darkened_mtspc_55",z="_visible_mtspc_63",F="_expanded_mtspc_68",K="_bodyOpen_mtspc_72",o={slidingPanel:M,sliding:Y,dragZone:T,dragHandle:D,overlay:Z,panelContent:A,darkened:$,visible:z,expanded:F,bodyOpen:K};function U(l){const{children:c,element:s=document.body}=l;return R.createPortal(c,s)}var j={exports:{}};/*!
 	Copyright (c) 2018 Jed Watson.
 	Licensed under the MIT License (MIT), see
 	http://jedwatson.github.io/classnames
