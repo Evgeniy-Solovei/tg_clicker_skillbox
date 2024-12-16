@@ -135,7 +135,7 @@ class PlayerTask(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='player_tasks', verbose_name='Задача')
     start_time = models.DateTimeField(null=True, blank=True, verbose_name='Время начала')
     completed = models.BooleanField(default=False, verbose_name='Выполнено')
-    add_flag = models.BooleanField(default=False, verbose_name='Доп. флаг')
+    add_flag = models.BooleanField(default=True, verbose_name='Доп. флаг')
 
     async def check_completion(self):
         """Проверка завершения задачи для одноразовых задач с задержкой 1 час"""

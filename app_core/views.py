@@ -707,7 +707,7 @@ async def is_user_in_chat(tg_id, chat_id, token):
                     return True
             return False
 
-CHANNEL_ID_MAP = {"tg_by": "-1002427171072", "tg_kz": "-1002479979971", "tg_uz": "-1"}
+CHANNEL_ID_MAP = {"tg_by": "-1001299502148", "tg_kz": "-1001091022486", "tg_uz": "-1001518723706"}
 
 
 class CheckSubscriptionView(GenericAPIView):
@@ -798,7 +798,7 @@ class TaskPlayerInfo(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
         # Устанавливаем задачу как выполненную
         player_task.completed = True
-        player_task.add_flag = True
+        player_task.add_flag = False
         await player_task.asave(update_fields=['completed', 'add_flag'])
         return Response({"message": "Информация о игроке успешно изменена, задача 'anketa' выполнена."},
                         status=status.HTTP_200_OK)
