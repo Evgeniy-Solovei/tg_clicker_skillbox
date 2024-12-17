@@ -1,6 +1,7 @@
 from collections import defaultdict
 
-from django.db.models import Prefetch
+from adrf.views import APIView
+from django.db.models import Prefetch, Q
 from adrf.viewsets import GenericAPIView
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -86,7 +87,7 @@ from rest_framework.response import Response
         }
     )
 )
-class ProductListView(GenericAPIView):
+class ProductListView(APIView):
     """
     Эндпоинт для получения списка продуктов и покупки продуктов для игрока.
     GET:
@@ -109,9 +110,12 @@ class ProductListView(GenericAPIView):
             ).aget(tg_id=tg_id)
         except Player.DoesNotExist:
             return Response({"error": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Получаем все активные продукты
-        products = Product.objects.filter(is_active=True).order_by('id').select_related('shop').aiterator()
+        # Получаем страну игрока
+        player_country = player.country
+        # Получаем все активные продукты, соответствующие стране игрока или с пустым полем country
+        products = Product.objects.filter(
+            Q(is_active=True) & (Q(country=player_country) | Q(country__isnull=True) | Q(country=''))
+        ).order_by('id').select_related('shop').aiterator()
         products = [product async for product in products]
         # Собираем список продуктов игрока
         player_products = {pp.product.id: pp for pp in player.purchases.all()}
