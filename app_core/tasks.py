@@ -59,4 +59,4 @@ def update_monthly_ranking():
 @shared_task(acks_late=True, reject_on_worker_lost=True)
 def reset_login_today():
     """Сбрасывает поле login_today у всех игроков."""
-    Player.objects.update(login_today=False)
+    Player.objects.update(login_today=False, login_today2=False)

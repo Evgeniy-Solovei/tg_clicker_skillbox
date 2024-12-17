@@ -41,7 +41,8 @@ class Player(models.Model):
     premium_tickets_all = models.IntegerField(default=0, verbose_name="Количество премиум билетов игрока за месяц")
     consecutive_days = models.IntegerField(default=0, verbose_name="Количество дней подряд")
     last_login_date = models.DateField(null=True, blank=True, verbose_name="Последний вход для расчёта дней подряд")
-    login_today = models.BooleanField(default=False, verbose_name="Входил ли пользователь сегодня")
+    login_today = models.BooleanField(default=False, verbose_name="Входил ли пользователь сегодня для фронта")
+    login_today2 = models.BooleanField(default=False, verbose_name="Входил ли пользователь сегодня")
     is_new = models.BooleanField(default=False, verbose_name='Новый игрок/не новый')
     daily_points = models.IntegerField(default=0, verbose_name="Очки за текущий день")
     daily_bonus_friends = models.IntegerField(default=0, verbose_name="Бонус от рефералов за текущий день")
@@ -59,7 +60,7 @@ class Player(models.Model):
         """
         today = timezone.now().date()
         # Если пользователь уже заходил сегодня, ничего не делаем
-        if self.login_today:
+        if self.login_today2:
             return
         # Проверка для расчета consecutive_days
         if self.last_login_date:
@@ -79,8 +80,10 @@ class Player(models.Model):
         self.premium_tickets_all += bonus.get("premium_tickets", 0)  # Увеличиваем общий счетчик премиум билетов
         self.points += bonus.get("points", 0)
         self.points_all += bonus.get("points", 0)  # Увеличиваем общее количество очков
+        self.daily_points += bonus.get("points", 0)
 
         self.last_login_date = today
+        self.login_today2 = True
         await self.asave()
 
     class Meta:
