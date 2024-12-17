@@ -268,9 +268,10 @@ class FriendBonusView(GenericAPIView):
             # Обновляем данные
             referral_relation.referral.points += 500
             referral_relation.referral.points_all += 500
+            referral_relation.referral.daily_points += 500
             friend_task.completed = True
             await friend_task.asave(update_fields=['completed'])
-            await referral_relation.referral.asave(update_fields=["points", "points_all"])
+            await referral_relation.referral.asave(update_fields=["points", "points_all", "daily_points"])
             referral_relation.referral_bonus = False
             await referral_relation.asave(update_fields=["referral_bonus"])
             return Response({"message": f"Вы получили 500 бонусный очков за друга {referral_relation.new_player.name}!",
@@ -475,7 +476,8 @@ class TaskPlayerDetailView(GenericAPIView):
                 reward_currency = task.task.reward_currency
                 player.points += reward_currency
                 player.points_all += reward_currency
-                await player.asave(update_fields=['points', 'points_all'])
+                player.daily_points += reward_currency
+                await player.asave(update_fields=['points', 'points_all', 'daily_points'])
             serializer = self.get_serializer(task, data=request.data, partial=True)
             if serializer.is_valid():
                 await serializer.asave()
@@ -679,15 +681,19 @@ class GameResult(GenericAPIView):
         except Player.DoesNotExist:
             return Response({"error": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
         if tickets is not None:
-            player.tickets -= int(tickets)
+            if player.tickets > 0:
+                player.tickets -= int(tickets)
+            else:
+                return Response({"error": "У пользователя нету билетов"}, status=status.HTTP_404_NOT_FOUND)
         if premium_tickets is not None:
             player.premium_tickets -= int(premium_tickets)
         player.points += int(points)
         player.points_all += int(points)
+        player.daily_points += int(points)
         if player.points < 0:
             player.points = 0
             player.points_all = 0
-        await player.asave(update_fields=["points", "points_all", "instruction", "tickets", "premium_tickets"])
+        await player.asave(update_fields=["points", "points_all", "daily_points", "instruction", "tickets", "premium_tickets"])
         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
 
 
@@ -753,7 +759,8 @@ class CheckSubscriptionView(GenericAPIView):
             # Увеличиваем количество монет игрока
             player.points += task.reward_currency
             player.points_all += task.reward_currency
-            await player.asave(update_fields=['points', 'points_all'])
+            player.daily_points += task.reward_currency
+            await player.asave(update_fields=['points', 'points_all', 'daily_points'])
             message = f"Пользователь подписан на канал."
             return Response({"message": message}, status=status.HTTP_200_OK)
         else:
