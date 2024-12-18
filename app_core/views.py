@@ -622,7 +622,7 @@ class MonthlyTopPlayersView(GenericAPIView):
             top_players.append({
                 "tg_id": player.tg_id,
                 "name": player.name,
-                "points": player.points,
+                "points": player.points_all,
                 "rank": player.rank
             })
         return Response({'top_players': top_players, 'player_rank': player_rank})
@@ -704,7 +704,7 @@ class GameResult(GenericAPIView):
         Обновляет топ-100 игроков в базе данных.
         """
         # Получаем топ-100 игроков, отсортированных по очкам
-        top_100_players = Player.objects.order_by('-points').aiterator()
+        top_100_players = Player.objects.order_by('-points_all').aiterator()
         updated_players = []
         rank = 1
         async for player in top_100_players:
@@ -722,7 +722,7 @@ class GameResult(GenericAPIView):
                 month=current_month,
                 tg_id=player.tg_id,
                 name=player.name,
-                points=player.points,
+                points=player.points_all,
                 rank=player.rank  # Устанавливаем ранг
             )
             for player in top_100_players
