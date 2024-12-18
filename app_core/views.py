@@ -684,7 +684,7 @@ class GameResult(GenericAPIView):
             if player.tickets > 0:
                 player.tickets -= int(tickets)
             else:
-                return Response({"error": "У пользователя нету билетов"}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "У пользователя нет билетов"}, status=status.HTTP_404_NOT_FOUND)
         if premium_tickets is not None:
             player.premium_tickets -= int(premium_tickets)
         player.points += int(points)
@@ -693,8 +693,46 @@ class GameResult(GenericAPIView):
         if player.points < 0:
             player.points = 0
             player.points_all = 0
-        await player.asave(update_fields=["points", "points_all", "daily_points", "instruction", "tickets", "premium_tickets"])
+        await player.asave(update_fields=["points", "points_all", "daily_points", "tickets", "premium_tickets"])
+        # Обновляем топ-100 игроков
+        await self.update_top_100()
+
         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
+
+    async def update_top_100(self):
+        """
+        Обновляет топ-100 игроков в базе данных.
+        """
+        # Получаем топ-100 игроков, отсортированных по очкам
+        top_100_players = Player.objects.order_by('-points').aiterator()
+        updated_players = []
+        rank = 1
+        async for player in top_100_players:
+            player.rank = rank
+            updated_players.append(player)
+            rank += 1
+        # Асинхронно обновляем ранги всех игроков в базе данных
+        await Player.objects.abulk_update(updated_players, ['rank'])
+        # Формируем топ-100 игроков
+        top_100_players = updated_players[:100]
+        # Формируем данные для сохранения в модель MonthlyTopPlayer
+        current_month = now().date().replace(day=1)
+        bulk_data = [
+            MonthlyTopPlayer(
+                month=current_month,
+                tg_id=player.tg_id,
+                name=player.name,
+                points=player.points,
+                rank=player.rank  # Устанавливаем ранг
+            )
+            for player in top_100_players
+        ]
+
+        # Удаляем старые записи для текущего месяца
+        await MonthlyTopPlayer.objects.filter(month=current_month).adelete()
+
+        # Создаём новые записи для текущего месяца
+        await MonthlyTopPlayer.objects.abulk_create(bulk_data)
 
 
 async def is_user_in_chat(tg_id, chat_id, token):
