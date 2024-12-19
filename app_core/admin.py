@@ -9,7 +9,14 @@ class PlayerAdmin(admin.ModelAdmin):
     list_display = ['id', 'tg_id', 'name', 'registration_date', 'points', 'points_all', 'tap_points', 'tickets',
                     'tickets_all', 'premium_tickets', 'premium_tickets_all', 'consecutive_days', 'last_login_date',
                     'login_today', 'is_new', 'daily_points', 'daily_bonus_friends', 'rank', 'country', 'name_player',
-                    'phone', 'league', 'instruction']
+                    'phone', 'league', 'instruction', 'total_logged_in_today']
+
+    def total_logged_in_today(self, obj):
+        # Считаем количество игроков с login_today=True
+        return Player.objects.filter(login_today=True).count()
+
+    # Устанавливаем заголовок для нового поля
+    total_logged_in_today.short_description = "Зашли сегодня"
 
 
 @admin.register(League)
