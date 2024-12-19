@@ -22,7 +22,7 @@ def calculate_daily_referral_bonus():
 @shared_task(acks_late=True, reject_on_worker_lost=True)
 def update_monthly_ranking():
     """Обновление рангов игроков и сохранение топ-100 в модель MonthlyTopPlayer"""
-    players = Player.objects.order_by('-points').all()
+    players = Player.objects.order_by('-points_all').all()
     updated_players = []
     rank = 1
 
@@ -47,13 +47,13 @@ def update_monthly_ranking():
                 month=current_month,
                 tg_id=player.tg_id,
                 name=player.name,
-                points=player.points,
+                points=player.points_all,
                 rank=player.rank
             )
             for player in top_100_players
         ]
         MonthlyTopPlayer.objects.bulk_create(bulk_data)
-    Player.objects.update(points=0)
+    Player.objects.update(points=0, points_all=0)
 
 
 @shared_task(acks_late=True, reject_on_worker_lost=True)
