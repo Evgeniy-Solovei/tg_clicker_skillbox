@@ -20,6 +20,40 @@ load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
 
+async def update_top_100():
+    """Обновляет топ-100 игроков в базе данных."""
+    # Получаем топ-100 игроков, отсортированных по очкам
+    top_100_players = Player.objects.order_by('-points_all').aiterator()
+    updated_players = []
+    rank = 1
+    async for player in top_100_players:
+        player.rank = rank
+        updated_players.append(player)
+        rank += 1
+    # Асинхронно обновляем ранги всех игроков в базе данных
+    await Player.objects.abulk_update(updated_players, ['rank'])
+    # Формируем топ-100 игроков
+    top_100_players = updated_players[:100]
+    # Формируем данные для сохранения в модель MonthlyTopPlayer
+    current_month = now().date().replace(day=1)
+    bulk_data = [
+        MonthlyTopPlayer(
+            month=current_month,
+            tg_id=player.tg_id,
+            name=player.name,
+            points=player.points_all,
+            rank=player.rank  # Устанавливаем ранг
+        )
+        for player in top_100_players
+    ]
+
+    # Удаляем старые записи для текущего месяца
+    await MonthlyTopPlayer.objects.filter(month=current_month).adelete()
+
+    # Создаём новые записи для текущего месяца
+    await MonthlyTopPlayer.objects.abulk_create(bulk_data)
+
+
 @extend_schema_view(
     get=extend_schema(
         tags=["Игрок: информация о пользователе"],
@@ -145,6 +179,7 @@ class PlayerInfo(GenericAPIView):
 
         # Обновляем ежедневный статус и возвращаем данные игрока
         response_data = await self.update_player_status(player)
+        await update_top_100()
         response_data['friends_count'] = friends_count
         response_data['bonus_info'] = DAILY_BONUSES
         return Response(response_data, status=status.HTTP_200_OK)
@@ -274,6 +309,7 @@ class FriendBonusView(GenericAPIView):
             await referral_relation.referral.asave(update_fields=["points", "points_all", "daily_points"])
             referral_relation.referral_bonus = False
             await referral_relation.asave(update_fields=["referral_bonus"])
+            await update_top_100()
             return Response({"message": f"Вы получили 500 бонусный очков за друга {referral_relation.new_player.name}!",
                             "total_tickets": referral_relation.referral.tickets}, status=status.HTTP_200_OK)
         except Player.DoesNotExist:
@@ -481,6 +517,7 @@ class TaskPlayerDetailView(GenericAPIView):
             serializer = self.get_serializer(task, data=request.data, partial=True)
             if serializer.is_valid():
                 await serializer.asave()
+                await update_top_100()
                 return Response(await serializer.adata, status=status.HTTP_200_OK)
             return Response(await serializer.aerrors, status=status.HTTP_400_BAD_REQUEST)
         return Response({'error': 'tg_id и dop_name обязательные поля'}, status=status.HTTP_400_BAD_REQUEST)
@@ -695,44 +732,9 @@ class GameResult(GenericAPIView):
             player.points_all = 0
         await player.asave(update_fields=["points", "points_all", "daily_points", "tickets", "premium_tickets"])
         # Обновляем топ-100 игроков
-        await self.update_top_100()
+        await update_top_100()
 
         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
-
-    async def update_top_100(self):
-        """
-        Обновляет топ-100 игроков в базе данных.
-        """
-        # Получаем топ-100 игроков, отсортированных по очкам
-        top_100_players = Player.objects.order_by('-points_all').aiterator()
-        updated_players = []
-        rank = 1
-        async for player in top_100_players:
-            player.rank = rank
-            updated_players.append(player)
-            rank += 1
-        # Асинхронно обновляем ранги всех игроков в базе данных
-        await Player.objects.abulk_update(updated_players, ['rank'])
-        # Формируем топ-100 игроков
-        top_100_players = updated_players[:100]
-        # Формируем данные для сохранения в модель MonthlyTopPlayer
-        current_month = now().date().replace(day=1)
-        bulk_data = [
-            MonthlyTopPlayer(
-                month=current_month,
-                tg_id=player.tg_id,
-                name=player.name,
-                points=player.points_all,
-                rank=player.rank  # Устанавливаем ранг
-            )
-            for player in top_100_players
-        ]
-
-        # Удаляем старые записи для текущего месяца
-        await MonthlyTopPlayer.objects.filter(month=current_month).adelete()
-
-        # Создаём новые записи для текущего месяца
-        await MonthlyTopPlayer.objects.abulk_create(bulk_data)
 
 
 async def is_user_in_chat(tg_id, chat_id, token):
@@ -799,6 +801,7 @@ class CheckSubscriptionView(GenericAPIView):
             player.points_all += task.reward_currency
             player.daily_points += task.reward_currency
             await player.asave(update_fields=['points', 'points_all', 'daily_points'])
+            await update_top_100()
             message = f"Пользователь подписан на канал."
             return Response({"message": message}, status=status.HTTP_200_OK)
         else:
