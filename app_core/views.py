@@ -622,7 +622,7 @@ class MonthlyTopPlayersView(GenericAPIView):
             top_players.append({
                 "tg_id": player.tg_id,
                 "name": player.name,
-                "points": player.points_all,
+                "points": player.points,
                 "rank": player.rank
             })
         return Response({'top_players': top_players, 'player_rank': player_rank})
