@@ -833,17 +833,27 @@ class TaskPlayerInfo(APIView):
                 Prefetch('task_player', queryset=PlayerTask.objects.select_related('task'))).aget(tg_id=tg_id)
         except Player.DoesNotExist:
             return Response({"error": "Игрок с указанным tg_id не найден."}, status=status.HTTP_404_NOT_FOUND)
-        # Обновляем данные игрока
-        player.country = country
-        player.name_player = name_player
-        player.phone = phone
-        await player.asave(update_fields=["country", "name_player", "phone"])
         # Ищем задачу с dop_name='anketa' для этого игрока
         player_task = next((pt for pt in player.task_player.all() if pt.task.dop_name == 'anketa'), None)
         if not player_task:
             return Response({
                 "error": "Задача с dop_name='anketa' не найдена для этого игрока."
             }, status=status.HTTP_404_NOT_FOUND)
+        # Проверяем, выполнена ли задача
+        if player_task.completed:
+            return Response({
+                "error": "Задача 'anketa' уже выполнена и не может быть выполнена повторно."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        # Обновляем данные игрока
+        player.country = country
+        player.name_player = name_player
+        player.phone = phone
+        # Зачисляем награду за задание
+        task = player_task.task
+        player.points += task.reward_currency
+        player.points_all += task.reward_currency
+        player.daily_points += task.reward_currency
+        await player.asave(update_fields=["country", "name_player", "phone", "points", "points_all", "daily_points"])
         # Устанавливаем задачу как выполненную
         player_task.completed = True
         player_task.add_flag = False
