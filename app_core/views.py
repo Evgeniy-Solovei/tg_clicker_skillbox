@@ -22,8 +22,8 @@ TOKEN = os.getenv("TOKEN")
 
 async def update_top_100():
     """Обновляет топ-100 игроков в базе данных."""
-    # Получаем топ-100 игроков, отсортированных по очкам
-    top_100_players = Player.objects.order_by('-points_all').aiterator()
+    # Получаем топ-100 игроков, отсортированных по очкам (по убыванию) и дате регистрации (по возрастанию)
+    top_100_players = Player.objects.order_by('-points_all', 'registration_date').aiterator()
     updated_players = []
     rank = 1
     async for player in top_100_players:
