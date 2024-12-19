@@ -144,7 +144,6 @@ class ProductListView(APIView):
             }
             for shop, shop_products in shops.items()
         ]
-
         return Response({"shops": response_data}, status=status.HTTP_200_OK)
 
     async def post(self, request, tg_id):
@@ -159,20 +158,29 @@ class ProductListView(APIView):
             product = await Product.objects.select_related('shop').aget(id=product_id, is_active=True)
         except Product.DoesNotExist:
             return Response({"error": "Продукт не найден или не активен"}, status=status.HTTP_404_NOT_FOUND)
-        # Проверяем, был ли продукт уже куплен
-        product_already_purchased = await PlayerProduct.objects.filter(player=player, product=product).aexists()
-        if product_already_purchased:
-            return Response({"error": "Продукт уже куплен"}, status=status.HTTP_400_BAD_REQUEST)
+        # Проверяем, является ли продукт одним из специальных продуктов (1, 2, 3, 20)
+        special_product_ids = {1, 2, 3, 20}
+        is_special_product = product.id in special_product_ids
+        # Если продукт не является специальным, проверяем, был ли он уже куплен
+        if not is_special_product:
+            product_already_purchased = await PlayerProduct.objects.filter(player=player, product=product).aexists()
+            if product_already_purchased:
+                return Response({"error": "Продукт уже куплен"}, status=status.HTTP_400_BAD_REQUEST)
         # Проверяем, достаточно ли баллов у игрока для покупки
         if player.points < product.price:
             return Response({"error": "Недостаточно баллов для покупки"}, status=status.HTTP_400_BAD_REQUEST)
         # Уменьшаем количество баллов игрока на цену продукта
         player.points -= product.price
         await player.asave()
+        # Определяем значение is_accessible в зависимости от типа продукта
+        is_accessible = False if is_special_product else True
         # Создаем запись о покупке продукта для игрока
-        player_product = await PlayerProduct.objects.acreate(player=player, product=product,
-                                                             purchased_at=timezone.now(),
-                                                             is_accessible=True)
+        player_product = await PlayerProduct.objects.acreate(
+            player=player,
+            product=product,
+            purchased_at=timezone.now(),
+            is_accessible=is_accessible
+        )
         return Response({
             "message": "Продукт успешно куплен",
             "shop": {
