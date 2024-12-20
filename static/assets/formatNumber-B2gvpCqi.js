@@ -1,0 +1,1 @@
+const o=e=>{if(typeof e=="number")return e.toString().replace(/\B(?=(\d{3})+(?!\d))/g," ")};function t(e){let r;return e>=1e9?(r=Math.floor(e/1e9*10)/10,r+"B"):e>=1e6?(r=Math.floor(e/1e6*10)/10,r+"M"):e>=1e4?(r=Math.floor(e/1e4*100)/10,r+"K"):Math.floor(e*10)/10+""}export{o as a,t as f};
