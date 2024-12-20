@@ -692,25 +692,66 @@ class MonthlyTopPlayersView(GenericAPIView):
         }
     )
 )
-class GameResult(GenericAPIView):
+# class GameResult(GenericAPIView):
+#     """
+#     Эндпоинт для обновления результатов игры для текущего игрока.
+#     Принимает POST-запрос.
+#     Параметры:
+#     - `tg_id`: Уникальный идентификатор пользователя в Telegram.
+#     - `points`: Количество очков.
+#     - `tickets`: Количество обычных билетов.
+#     - `premium_tickets`: Количество премиум билетов.
+#     Возвращает:
+#     - Количество очков заработанное пользователем.
+#     """
+#     async def post(self, request):
+#         tg_id = request.data.get('tg_id')
+#         points = request.data.get('points')
+#         tickets = request.data.get('tickets')
+#         premium_tickets = request.data.get('premium_tickets')
+#         if not tg_id or not points:
+#             return Response({"error": "Параметры tg_id и points обязательны"}, status=status.HTTP_400_BAD_REQUEST)
+#         if tickets is None and premium_tickets is None:
+#             return Response({"error": "Переменная tickets или premium_tickets обязательна"}, status=status.HTTP_400_BAD_REQUEST)
+#         try:
+#             player = await Player.objects.aget(tg_id=tg_id)
+#         except Player.DoesNotExist:
+#             return Response({"error": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
+#         if tickets is not None:
+#             if player.tickets > 0:
+#                 player.tickets -= int(tickets)
+#             else:
+#                 return Response({"error": "У пользователя нет билетов"}, status=status.HTTP_404_NOT_FOUND)
+#         if premium_tickets is not None:
+#             player.premium_tickets -= int(premium_tickets)
+#         player.points += int(points)
+#         player.points_all += int(points)
+#         player.daily_points += int(points)
+#         if player.points < 0:
+#             player.points = 0
+#             player.points_all = 0
+#         await player.asave(update_fields=["points", "points_all", "daily_points", "tickets", "premium_tickets"])
+#         # Обновляем топ-100 игроков
+#         await update_top_100()
+#
+#         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
+class StartGame(GenericAPIView):
     """
-    Эндпоинт для обновления результатов игры для текущего игрока.
+    Эндпоинт для начала игры.
     Принимает POST-запрос.
     Параметры:
     - `tg_id`: Уникальный идентификатор пользователя в Telegram.
-    - `points`: Количество очков.
     - `tickets`: Количество обычных билетов.
     - `premium_tickets`: Количество премиум билетов.
     Возвращает:
-    - Количество очков заработанное пользователем.
+    - Сообщение об успешном начале игры или ошибку.
     """
     async def post(self, request):
         tg_id = request.data.get('tg_id')
-        points = request.data.get('points')
         tickets = request.data.get('tickets')
         premium_tickets = request.data.get('premium_tickets')
-        if not tg_id or not points:
-            return Response({"error": "Параметры tg_id и points обязательны"}, status=status.HTTP_400_BAD_REQUEST)
+        if not tg_id:
+            return Response({"error": "Параметр tg_id обязателен"}, status=status.HTTP_400_BAD_REQUEST)
         if tickets is None and premium_tickets is None:
             return Response({"error": "Переменная tickets или premium_tickets обязательна"}, status=status.HTTP_400_BAD_REQUEST)
         try:
@@ -718,22 +759,47 @@ class GameResult(GenericAPIView):
         except Player.DoesNotExist:
             return Response({"error": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
         if tickets is not None:
-            if player.tickets > 0:
+            if player.tickets >= int(tickets):
                 player.tickets -= int(tickets)
             else:
-                return Response({"error": "У пользователя нет билетов"}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "У пользователя недостаточно обычных билетов"}, status=status.HTTP_400_BAD_REQUEST)
         if premium_tickets is not None:
-            player.premium_tickets -= int(premium_tickets)
+            if player.premium_tickets >= int(premium_tickets):
+                player.premium_tickets -= int(premium_tickets)
+            else:
+                return Response({"error": "У пользователя недостаточно премиум билетов"}, status=status.HTTP_400_BAD_REQUEST)
+        await player.asave(update_fields=["tickets", "premium_tickets"])
+        return Response({"message": "Игра началась, билеты сняты"}, status=status.HTTP_200_OK)
+
+
+class GameResult(GenericAPIView):
+    """
+    Эндпоинт для зачисления результатов игры.
+    Принимает POST-запрос.
+    Параметры:
+    - `tg_id`: Уникальный идентификатор пользователя в Telegram.
+    - `points`: Количество очков.
+    Возвращает:
+    - Количество очков, зачисленное пользователю.
+    """
+    async def post(self, request):
+        tg_id = request.data.get('tg_id')
+        points = request.data.get('points')
+        if not tg_id or not points:
+            return Response({"error": "Параметры tg_id и points обязательны"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            player = await Player.objects.aget(tg_id=tg_id)
+        except Player.DoesNotExist:
+            return Response({"error": "Игрок не найден"}, status=status.HTTP_404_NOT_FOUND)
         player.points += int(points)
         player.points_all += int(points)
         player.daily_points += int(points)
         if player.points < 0:
             player.points = 0
             player.points_all = 0
-        await player.asave(update_fields=["points", "points_all", "daily_points", "tickets", "premium_tickets"])
+        await player.asave(update_fields=["points", "points_all", "daily_points"])
         # Обновляем топ-100 игроков
         await update_top_100()
-
         return Response({f"Игрок {player.name} получил {points} очков"}, status=status.HTTP_200_OK)
 
 
