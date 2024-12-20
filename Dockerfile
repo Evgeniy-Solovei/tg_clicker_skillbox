@@ -24,4 +24,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY skill_tap .
 
 # Запускаем Uvicorn сервер
-CMD ["uvicorn", "skill_tap.asgi:application", "--host", "0.0.0.0", "--port", "8000 & python telegram.py"]
+#CMD ["uvicorn", "skill_tap.asgi:application", "--host", "0.0.0.0", "--port", "8000 & python telegram.py"]
+CMD ["sh", "-c", "uvicorn skill_tap.asgi:application --host 0.0.0.0 --port 8000 && python telegram.py"]
